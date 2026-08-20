@@ -87,7 +87,24 @@ function toggleTTS() {
   showToast(`Voice synthesis ${ttsEnabled ? 'engaged' : 'disabled'}.`);
 }
 
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  // Play a 1ms silent WAV to unlock the HTML5 Audio engine
+  const silentAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+  silentAudio.play().catch(()=>{});
+  
+  // Unlock the fallback speech engine
+  if (window.speechSynthesis) {
+    const silentUtterance = new SpeechSynthesisUtterance('');
+    silentUtterance.volume = 0;
+    window.speechSynthesis.speak(silentUtterance);
+  }
+  audioUnlocked = true;
+}
+
 async function sendMessage() {
+  unlockAudio();
   const inputEl = document.getElementById('messageInput');
   const text = inputEl.value.trim();
   
@@ -230,14 +247,24 @@ async function speakText(text) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || `TTS fetch failed with status ${res.status}`);
     }
+    const contentType = res.headers.get('Content-Type');
+    if (!contentType || !contentType.includes('audio/wav')) {
+      throw new Error(`Tunnel intercepted request! Received ${contentType} instead of audio/wav.`);
+    }
+
     const blob = await res.blob();
     const audioUrl = URL.createObjectURL(blob);
     const audio = new Audio(audioUrl);
     
-    // Play the audio and clean up the URL afterward
-    audio.onended = () => URL.revokeObjectURL(audioUrl);
-    
-    await audio.play().catch(e => {
+    // Wait for the audio to finish playing before cleaning up and exiting
+    await new Promise((resolve, reject) => {
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        resolve();
+      };
+      audio.onerror = (e) => reject(e);
+      audio.play().catch(reject);
+    }).catch(e => {
       console.error("Audio playback prevented by browser:", e);
       browserTTS(cleanText);
     });
