@@ -1,7 +1,7 @@
 let chatHistory = [];
 let ttsEnabled = false;
 let isProcessing = false;
-let settings = { workerUrl: '', fishModelId: '' };
+let settings = { workerUrl: '', localTtsUrl: '' };
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -34,7 +34,8 @@ function loadSettings() {
 function saveSettings() {
   settings.workerUrl = document.getElementById('workerUrl').value.trim();
   if (settings.workerUrl.endsWith('/')) settings.workerUrl = settings.workerUrl.slice(0, -1);
-  settings.fishModelId = document.getElementById('fishModelId').value.trim();
+  settings.localTtsUrl = document.getElementById('localTtsUrl').value.trim();
+  if (settings.localTtsUrl.endsWith('/')) settings.localTtsUrl = settings.localTtsUrl.slice(0, -1);
   
   localStorage.setItem('bt_settings_v2', JSON.stringify(settings));
   closeSettings();
@@ -212,7 +213,7 @@ function setProcessing(state) {
 
 async function speakText(text) {
   const cleanText = text.replace(/\*\*/g, '').replace(/\*/g, '');
-  if (!settings.fishModelId || !settings.workerUrl) {
+  if (!settings.elevenLabsVoiceId || !settings.workerUrl) {
     browserTTS(cleanText);
     return;
   }
@@ -220,7 +221,7 @@ async function speakText(text) {
     const res = await fetch(`${settings.workerUrl}/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanText, voice_id: settings.fishModelId })
+      body: JSON.stringify({ text: cleanText, voice_id: settings.elevenLabsVoiceId })
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -234,7 +235,7 @@ async function speakText(text) {
     source.connect(audioCtx.destination);
     source.start(0);
   } catch (err) {
-    console.error('Fish Audio failed, fallback to browser TTS', err);
+    console.error('ElevenLabs failed, fallback to browser TTS', err);
     browserTTS(cleanText);
   }
 }
@@ -242,14 +243,23 @@ async function speakText(text) {
 function browserTTS(text) {
   if (!window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
+  
+  // Try to find a good robotic/male voice on macOS
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.name.includes('Daniel') || v.name.includes('Alex') || v.name.includes('Ralph'));
+  if (preferred) {
+    utterance.voice = preferred;
+  }
+  
+  // Lower pitch and rate for a more "Titan" feel
   utterance.rate = 0.85;
-  utterance.pitch = 0.65;
+  utterance.pitch = 0.4;
   window.speechSynthesis.speak(utterance);
 }
 
 function openSettings() {
   document.getElementById('workerUrl').value = settings.workerUrl || '';
-  document.getElementById('fishModelId').value = settings.fishModelId || '';
+  document.getElementById('localTtsUrl').value = settings.localTtsUrl || '';
   document.getElementById('settingsModal')?.classList.add('active');
 }
 
@@ -276,7 +286,7 @@ function clearAllMemory() {
   if (confirm('WARNING: This will erase all configuration and chat history. Proceed?')) {
     localStorage.removeItem('bt_settings_v2');
     localStorage.removeItem('bt_chat_history_v2');
-    settings = { workerUrl: '', fishModelId: '' };
+    settings = { workerUrl: '', localTtsUrl: '' };
     chatHistory = [];
     closeSettings();
     showToast('Factory reset complete.');
