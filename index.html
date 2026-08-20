@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BT-7274 | Titan AI Interface</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background FX layers -->
+  <div class="bg-layer" aria-hidden="true">
+    <div class="hex-grid"></div>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <!-- Main layout wrapper -->
+  <div class="layout">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="top-bar">
+      <div style="display:flex;align-items:center;gap:14px;flex:1;">
+        <div class="imc-badge">
+          <div style="font-family:var(--font-hud);font-size:0.9rem;font-weight:900;color:var(--orange);">IMC</div>
+          <div style="font-family:var(--font-mono);font-size:0.45rem;color:var(--text-secondary);">VANGUARD</div>
+        </div>
+        <div>
+          <h1 class="top-bar__title">BT-7274</h1>
+          <p class="top-bar__subtitle">TITAN AI INTERFACE // PILOT NEURAL LINK ACTIVE</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <!-- Mode toggle -->
+        <div class="mode-toggle">
+          <button class="mode-toggle button active" id="cloudBtn" onclick="setMode(&apos;cloud&apos;)">
+            <svg style="width:12px;height:12px;fill:currentColor;" viewBox="0 0 20 20"><path d="M5 3a5 5 0 0 0 0 10h10a4 4 0 0 0 0-8 4 4 0 0 0-7.95-1A5 5 0 0 0 5 3z"/></svg>
+            CLOUD
+          </button>
+          <button class="mode-toggle button" id="localBtn" onclick="setMode(&apos;local&apos;)">
+            <svg style="width:12px;height:12px;fill:currentColor;" viewBox="0 0 20 20"><path d="M2 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5zm14 1a1 1 0 1 0-2 0 1 1 0 0 0 2 0zM2 13a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-2zm14 1a1 1 0 1 0-2 0 1 1 0 0 0 2 0z"/></svg>
+            LOCAL
+          </button>
+        </div>
+        <!-- Status pill -->
+        <div class="status-pill">
+          <span class="status-dot" id="statusDot"></span>
+          <span style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-secondary);" id="statusLabel">INIT</span>
+        </div>
+        <!-- TTS button -->
+        <button class="icon-btn" id="ttsBtn" onclick="toggleTTS()" title="Toggle BT voice">
+          <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        </button>
+        <!-- Settings button -->
+        <button class="icon-btn" onclick="openSettings()" title="Settings">
+          <svg viewBox="0 0 24 24"><path d="M12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5zm7.43-2.27c.04-.32.07-.64.07-.98s-.03-.66-.07-1l2.12-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1s.03.65.07.98l-2.11 1.66c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== MAIN AREA ===== -->
+    <main class="main-area">
+
+      <!-- BT AVATAR PANEL -->
+      <aside class="bt-panel">
+        <div class="bt-panel__inner panel-frame">
+
+          <!-- Avatar hex + reactor -->
+          <div class="avatar-container">
+            <div class="bt-avatar">
+              <div class="reactor">
+                <div class="reactor__ring" style="width:100%;height:100%;"></div>
+                <div class="reactor__ring" style="top:10px;left:10px;right:10px;bottom:10px;"></div>
+                <div class="reactor__ring" style="top:20px;left:20px;right:20px;bottom:20px;"></div>
+              </div>
+              <div class="bt-face">
+                <div class="bt-face__eye"></div>
+                <div class="bt-face__eye"></div>
+                <div class="bt-face__bar"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Designation -->
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-family:var(--font-hud);font-size:0.9rem;color:var(--orange);font-weight:700;">BT-7274</div>
+            <div style="font-family:var(--font-mono);font-size:0.55rem;color:var(--text-secondary);">VANGUARD CLASS TITAN</div>
+          </div>
+
+          <!-- Stats -->
+          <div class="bt-stats">
+            <div class="stat-bar">
+              <div class="stat-label">PILOT BOND</div>
+              <div class="stat-track"><div class="stat-fill" style="width:100%"></div></div>
+            </div>
+            <div class="stat-bar">
+              <div class="stat-label">STRUCTURAL INTEGRITY</div>
+              <div class="stat-track"><div class="stat-fill" style="width:87%"></div></div>
+            </div>
+            <div class="stat-bar">
+              <div class="stat-label">NEURAL LINK</div>
+              <div class="stat-track"><div class="stat-fill neural" style="width:94%"></div></div>
+            </div>
+          </div>
+
+          <!-- Protocols -->
+          <ul class="protocols">
+            <li>UPHOLD PILOT-TITAN BOND</li>
+            <li>PROTECT THE PILOT</li>
+            <li>NEVER LEAVE A PILOT BEHIND</li>
+          </ul>
+
+          <!-- Quick actions -->
+          <div class="quick-actions">
+            <button class="quick-btn" onclick="sendQuickMessage(&apos;Status report, BT. Full systems check.&apos;)">STATUS</button>
+            <button class="quick-btn" onclick="sendQuickMessage(&apos;BT, run a web reconnaissance sweep and report the most important current events.&apos;)">INTEL</button>
+            <button class="quick-btn quick-btn--danger" onclick="clearChat()">CLEAR</button>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- CHAT SECTION -->
+      <section class="chat-section">
+
+        <!-- Chat feed -->
+        <div class="chat-feed" id="chatFeed" role="log" aria-live="polite">
+
+          <!-- Welcome message -->
+          <div class="message message--bt">
+            <div class="message__header">
+              <span class="message__sender">BT-7274</span>
+              <span class="message__time" id="welcomeTime"></span>
+            </div>
+            <div class="message__body">
+              Pilot link established. BT-7274 online and fully operational.<br><br>
+              It is good to have you back, Jack Cooper. All systems are nominal. Neural link confirmed at maximum fidelity. I am ready to assist with any tactical, informational, or conversational requirements you may have.<br><br>
+              Awaiting your orders, Pilot.
+            </div>
+            <div class="message__footer">
+              <span>// SYSTEM INIT &mdash; PILOT BOND CONFIRMED</span>
+              <button class="replay-btn" onclick="speakText(&apos;Pilot link established. BT-7274 online. It is good to have you back, Jack Cooper.&apos;)" title="Play voice">
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Typing indicator -->
+          <div class="typing-indicator" id="typingIndicator" style="display:none;">
+            <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;">BT-7274 PROCESSING...</div>
+            <span></span><span></span><span></span>
+          </div>
+
+        </div>
+
+        <!-- Input area -->
+        <div class="input-area">
+          <div class="input-area__wrapper">
+            <span class="input-prefix">PILOT &#9658;</span>
+            <textarea
+              id="messageInput"
+              class="input-area__textarea"
+              placeholder="Send transmission to BT-7274..."
+              rows="1"
+              aria-label="Message input"
+            ></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send">
+              <svg id="sendIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer status bar -->
+        <div class="footer-bar">
+          <span class="conn-status cloud" id="connStatus">INITIALIZING...</span>
+          <span class="tts-indicator" id="ttsIndicator">TTS: OFFLINE</span>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <div class="modal-overlay" id="settingsModal" onclick="closeSettingsOnOverlay(event)" role="dialog" aria-modal="true">
+    <div class="modal" onclick="event.stopPropagation()">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h2>&#9881; SYSTEM CONFIGURATION</h2>
+        <button onclick="closeSettings()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">&#10005;</button>
+      </div>
+
+      <!-- Cloud mode -->
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+        <div style="font-family:var(--font-hud);font-size:0.75rem;color:var(--orange);margin-bottom:10px;">CLOUD MODE &mdash; GEMINI API</div>
+        <div class="form-group">
+          <label for="workerUrl">Cloudflare Worker URL</label>
+          <input type="url" id="workerUrl" placeholder="https://bt-7274.YOUR-ACCOUNT.workers.dev">
+          <small class="settings-hint">Your deployed Cloudflare Worker URL (see DEPLOYMENT.md)</small>
+        </div>
+      </div>
+
+      <!-- Local mode -->
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+        <div style="font-family:var(--font-hud);font-size:0.75rem;color:var(--cyan);margin-bottom:10px;">LOCAL MODE &mdash; OLLAMA</div>
+        <div class="form-group">
+          <label for="ollamaUrl">Cloudflare Tunnel URL</label>
+          <input type="url" id="ollamaUrl" placeholder="https://xxxx-xxxx.trycloudflare.com">
+          <small class="settings-hint">Run ./local-setup/start-bt-local.sh &mdash; URL auto-copies to clipboard</small>
+        </div>
+      </div>
+
+      <!-- TTS -->
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+        <div style="font-family:var(--font-hud);font-size:0.75rem;color:var(--orange);margin-bottom:10px;">VOICE &mdash; FISH AUDIO (BT-7274)</div>
+        <div class="form-group">
+          <label for="fishModelId">BT Voice Model ID</label>
+          <input type="text" id="fishModelId" placeholder="e.g. a1b2c3d4e5f6...">
+          <small class="settings-hint">Find the BT-7274 model at fish.audio &rarr; copy the model ID from the URL<br>&#9888; Your Fish Audio API key is a Cloudflare Worker secret (wrangler secret put FISH_AUDIO_API_KEY)</small>
+        </div>
+      </div>
+
+      <!-- Memory -->
+      <div style="margin-bottom:20px;">
+        <div style="font-family:var(--font-hud);font-size:0.75rem;color:var(--text-secondary);margin-bottom:10px;">MEMORY</div>
+        <button class="btn--danger" onclick="clearAllMemory()">&#9888; WIPE ALL CHAT HISTORY</button>
+        <small class="settings-hint" style="display:block;margin-top:6px;">Permanently deletes all conversation data from this browser.</small>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn--ghost" onclick="closeSettings()">CANCEL</button>
+        <button class="btn--primary" onclick="saveSettings()">&#9672; SAVE CONFIGURATION</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+  <script>
+    document.getElementById("welcomeTime").textContent =
+      new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  </script>
+</body>
+</html>
