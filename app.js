@@ -19,7 +19,7 @@ function init() {
     }, 500);
   }
   
-  document.getElementById('ttsBtn')?.addEventListener('click', toggleTTS);
+  // TTS button already uses onclick in HTML
   document.getElementById('messageInput')?.addEventListener('keydown', handleKeyDown);
   document.getElementById('messageInput')?.addEventListener('input', function() { autoResize(this); });
 }
