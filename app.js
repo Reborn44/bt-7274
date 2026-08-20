@@ -271,7 +271,33 @@ async function speakText(text) {
     }
 
     const arrayBuffer = await res.arrayBuffer();
-    const audioBuffer = await globalAudioCtx.decodeAudioData(arrayBuffer);
+    
+    // Manually decode the WAV file to bypass Safari's buggy decodeAudioData
+    const view = new DataView(arrayBuffer);
+    const numChannels = view.getUint16(22, true);
+    const sampleRate = view.getUint32(24, true);
+    
+    let offset = 12;
+    let audioBuffer = null;
+    
+    while (offset < view.byteLength) {
+      const chunkId = String.fromCharCode(view.getUint8(offset), view.getUint8(offset+1), view.getUint8(offset+2), view.getUint8(offset+3));
+      const chunkSize = view.getUint32(offset + 4, true);
+      
+      if (chunkId === 'data') {
+        const samples = new Int16Array(arrayBuffer, offset + 8, chunkSize / 2);
+        audioBuffer = globalAudioCtx.createBuffer(numChannels, samples.length, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < samples.length; i++) {
+          channelData[i] = samples[i] / 32768.0; // Convert 16-bit int to float32
+        }
+        break;
+      }
+      offset += 8 + chunkSize;
+    }
+
+    if (!audioBuffer) throw new Error("Could not find audio data in WAV file");
+
     const source = globalAudioCtx.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(globalAudioCtx.destination);
