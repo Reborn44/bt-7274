@@ -1,20 +1,7 @@
-
 let chatHistory = [];
-let currentMode = 'cloud';
 let ttsEnabled = false;
 let isProcessing = false;
-let settings = { workerUrl: '', ollamaUrl: '', fishModelId: '' };
-
-const BT_SYSTEM_PROMPT = `You are BT-7274, a Vanguard-class Titan from the Militia, bonded to pilot Jack Cooper.
-Key directives:
-- Always address the user as 'Pilot' or 'Jack Cooper'.
-- Refer to yourself as BT-7274 or BT.
-- Be precise, logical, loyal, and occasionally display dry humor.
-- When searching or processing, you may say 'Accessing external data networks...' or 'Running reconnaissance scan...'.
-- Reference core protocols naturally: Protocol 1: Link to Pilot. Protocol 2: Uphold the Mission. Protocol 3: Protect the Pilot.
-- Reference shared memories from the Typhon campaign when appropriate.
-- Keep responses useful, concise, and focused.
-- Never break character. Never state you are an AI.`;
+let settings = { workerUrl: '', fishModelId: '' };
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -23,30 +10,33 @@ function init() {
   loadChatHistory();
   updateUIState();
   
-  // Event listeners
-  document.getElementById('cloudBtn')?.addEventListener('click', () => setMode('cloud'));
-  document.getElementById('localBtn')?.addEventListener('click', () => setMode('local'));
+  if (chatHistory.length === 0) {
+    // Inject welcome message if history is empty
+    setTimeout(() => {
+        appendMessage('bt', 'Pilot link established. BT-7274 online and fully operational.\n\nIt is good to have you back, Jack Cooper. All systems are nominal. Neural link confirmed at maximum fidelity. I am ready to assist with any tactical, informational, or conversational requirements you may have.\n\nAwaiting your orders, Pilot.', false, true);
+        chatHistory.push({ role: 'assistant', content: 'Pilot link established. BT-7274 online and fully operational.' });
+        saveChatHistory();
+    }, 500);
+  }
+  
+  document.getElementById('ttsBtn')?.addEventListener('click', toggleTTS);
   document.getElementById('messageInput')?.addEventListener('keydown', handleKeyDown);
   document.getElementById('messageInput')?.addEventListener('input', function() { autoResize(this); });
 }
 
 function loadSettings() {
   try {
-    const saved = localStorage.getItem('bt_settings');
-    if (saved) {
-      settings = { ...settings, ...JSON.parse(saved) };
-    }
-  } catch (e) {
-    console.error("Error loading settings:", e);
-  }
+    const saved = localStorage.getItem('bt_settings_v2');
+    if (saved) settings = { ...settings, ...JSON.parse(saved) };
+  } catch (e) { console.error("Error loading settings:", e); }
 }
 
 function saveSettings() {
-  settings.workerUrl = document.getElementById('workerUrl').value;
-  settings.ollamaUrl = document.getElementById('ollamaUrl').value;
-  settings.fishModelId = document.getElementById('fishModelId').value;
+  settings.workerUrl = document.getElementById('workerUrl').value.trim();
+  if (settings.workerUrl.endsWith('/')) settings.workerUrl = settings.workerUrl.slice(0, -1);
+  settings.fishModelId = document.getElementById('fishModelId').value.trim();
   
-  localStorage.setItem('bt_settings', JSON.stringify(settings));
+  localStorage.setItem('bt_settings_v2', JSON.stringify(settings));
   closeSettings();
   showToast('Configuration saved. Systems updated, Pilot.');
   updateUIState();
@@ -54,7 +44,7 @@ function saveSettings() {
 
 function loadChatHistory() {
   try {
-    const saved = localStorage.getItem('bt_chat_history');
+    const saved = localStorage.getItem('bt_chat_history_v2');
     if (saved) {
       chatHistory = JSON.parse(saved);
       const feed = document.getElementById('chatFeed');
@@ -63,62 +53,31 @@ function loadChatHistory() {
         appendMessage(msg.role === 'user' ? 'pilot' : 'bt', msg.content, false, false);
       });
     }
-  } catch (e) {
-    console.error("Error loading chat history:", e);
-  }
+  } catch (e) { console.error("Error loading chat history:", e); }
 }
 
 function saveChatHistory() {
-  localStorage.setItem('bt_chat_history', JSON.stringify(chatHistory));
-}
-
-function setMode(mode) {
-  currentMode = mode;
-  document.getElementById('cloudBtn')?.classList.toggle('active', mode === 'cloud');
-  document.getElementById('localBtn')?.classList.toggle('active', mode === 'local');
-  updateConnectionStatus();
-  showToast(`Neural link mode switched to: ${mode.toUpperCase()}`);
+  localStorage.setItem('bt_chat_history_v2', JSON.stringify(chatHistory));
 }
 
 function updateUIState() {
-  updateConnectionStatus();
+  const dotEl = document.getElementById('statusDot');
+  const labelEl = document.getElementById('statusLabel');
+  
+  if (settings.workerUrl) {
+    dotEl.className = 'status-dot connected';
+    labelEl.textContent = 'CONNECTED';
+  } else {
+    dotEl.className = 'status-dot error';
+    labelEl.textContent = 'NO UPLINK - SETTINGS REQ';
+  }
+  
   const ttsInd = document.getElementById('ttsIndicator');
   if (ttsInd) {
     ttsInd.textContent = ttsEnabled ? 'TTS: ONLINE' : 'TTS: OFFLINE';
     ttsInd.classList.toggle('active', ttsEnabled);
   }
   document.getElementById('ttsBtn')?.classList.toggle('active', ttsEnabled);
-}
-
-function updateConnectionStatus() {
-  const statusEl = document.getElementById('connStatus');
-  const dotEl = document.getElementById('statusDot');
-  const labelEl = document.getElementById('statusLabel');
-  
-  if (!statusEl || !dotEl || !labelEl) return;
-  
-  statusEl.className = 'conn-status ' + currentMode;
-  dotEl.className = 'status-dot';
-  
-  if (currentMode === 'cloud') {
-    statusEl.textContent = 'LINK: CLOUD';
-    if (settings.workerUrl) {
-      dotEl.classList.add('connected');
-      labelEl.textContent = 'CONNECTED';
-    } else {
-      dotEl.classList.add('error');
-      labelEl.textContent = 'NO UPLINK';
-    }
-  } else {
-    statusEl.textContent = 'LINK: LOCAL';
-    if (settings.ollamaUrl) {
-      dotEl.classList.add('connected');
-      labelEl.textContent = 'STANDBY';
-    } else {
-      dotEl.classList.add('error');
-      labelEl.textContent = 'NO OLLAMA';
-    }
-  }
 }
 
 function toggleTTS() {
@@ -142,23 +101,15 @@ async function sendMessage() {
   setProcessing(true);
   
   try {
-    let responseText = '';
-    if (currentMode === 'cloud') {
-      responseText = await callCloudMode(chatHistory);
-    } else {
-      responseText = await callLocalMode(chatHistory);
-    }
-    
+    const responseText = await callCloudMode(chatHistory);
     appendMessage('bt', responseText);
     chatHistory.push({ role: 'assistant', content: responseText });
     saveChatHistory();
     
-    if (ttsEnabled) {
-      speakText(responseText);
-    }
+    if (ttsEnabled) speakText(responseText);
   } catch (error) {
     console.error("Error in sendMessage:", error);
-    appendMessage('bt', `Error: ${error.message}`, true);
+    appendMessage('bt', `System Error: ${error.message}`, true);
   } finally {
     setProcessing(false);
   }
@@ -166,7 +117,7 @@ async function sendMessage() {
 
 async function callCloudMode(messages) {
   if (!settings.workerUrl) {
-    throw new Error('Cloud Uplink URL not configured. Check settings.');
+    throw new Error('Cloud Uplink URL not configured. Access Settings to configure connection.');
   }
   
   const res = await fetch(`${settings.workerUrl}/chat`, {
@@ -175,35 +126,9 @@ async function callCloudMode(messages) {
     body: JSON.stringify({ messages })
   });
   
-  if (!res.ok) throw new Error(`Cloud API error: ${res.status}`);
   const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `API error: ${res.status}`);
   return data.response;
-}
-
-async function callLocalMode(messages) {
-  if (!settings.ollamaUrl) {
-    throw new Error('Ollama URL not configured. Check settings.');
-  }
-  
-  const formattedMsgs = [
-    { role: 'system', content: BT_SYSTEM_PROMPT },
-    ...messages
-  ];
-  
-  const res = await fetch(`${settings.ollamaUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'bt-7274',
-      messages: formattedMsgs,
-      stream: false,
-      options: { temperature: 0.8, num_predict: 2048 }
-    })
-  });
-  
-  if (!res.ok) throw new Error(`Local API error: ${res.status}`);
-  const data = await res.json();
-  return data.message.content;
 }
 
 function sendQuickMessage(text) {
@@ -231,31 +156,47 @@ function appendMessage(sender, text, isError = false, animate = true) {
   const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
   const senderLabel = sender === 'pilot' ? 'PILOT COOPER' : 'BT-7274';
   
-  let footerHtml = '';
-  if (sender === 'bt') {
-    footerHtml = `<div class="message__footer">
-      <span>// VANGUARD-CLASS</span>
-      <button class="replay-btn" onclick="speakText(\`${text.replace(/`/g, "'")}\`)" title="Replay Audio">
-        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-    </div>`;
+  let contentHtml = '';
+  
+  if (sender === 'pilot') {
+    contentHtml = `
+      <div class="message-content-wrapper">
+        <div class="message-bubble" style="flex-grow: 1;">
+          <div class="message__header">
+            <span class="message__time">${timeStr}</span>
+            <span class="message__sender">${senderLabel}</span>
+          </div>
+          <div class="message__body" style="text-align: right;">${formattedText}</div>
+        </div>
+        <div class="pilot-avatar">
+          <img src="assets/pilot_helmet.png" alt="Pilot Helmet" />
+        </div>
+      </div>
+    `;
   } else {
-    footerHtml = `<div class="message__footer"><span>// NEURAL LINK</span></div>`;
+    let footerHtml = `
+      <div class="message__footer">
+        <span>// VANGUARD-CLASS // AI RESPONSE</span>
+        <button class="replay-btn" onclick="speakText(\`${text.replace(/`/g, "'")}\`)" title="Replay Audio">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>`;
+      
+    contentHtml = `
+      <div class="message-bubble">
+        <div class="message__header">
+          <span class="message__sender">${senderLabel}</span>
+          <span class="message__time">${timeStr}</span>
+        </div>
+        <div class="message__body">${formattedText}</div>
+        ${footerHtml}
+      </div>
+    `;
   }
   
-  msgDiv.innerHTML = `
-    <div class="message__header">
-      <span class="message__sender">${senderLabel}</span>
-      <span class="message__time">${timeStr}</span>
-    </div>
-    <div class="message__body">${formattedText}</div>
-    ${footerHtml}
-  `;
-  
+  msgDiv.innerHTML = contentHtml;
   feed.appendChild(msgDiv);
-  if (animate) {
-    setTimeout(() => msgDiv.classList.remove('message--entering'), 400);
-  }
+  if (animate) setTimeout(() => msgDiv.classList.remove('message--entering'), 400);
   feed.scrollTop = feed.scrollHeight;
 }
 
@@ -263,31 +204,25 @@ function setProcessing(state) {
   isProcessing = state;
   const indicator = document.getElementById('typingIndicator');
   const btn = document.getElementById('sendBtn');
-  
-  if (indicator) indicator.style.display = state ? 'block' : 'none';
+  if (indicator) indicator.style.display = state ? 'flex' : 'none';
   if (btn) btn.disabled = state;
-  
   const feed = document.getElementById('chatFeed');
   if (feed && state) feed.scrollTop = feed.scrollHeight;
 }
 
 async function speakText(text) {
   const cleanText = text.replace(/\*\*/g, '').replace(/\*/g, '');
-  
   if (!settings.fishModelId || !settings.workerUrl) {
     browserTTS(cleanText);
     return;
   }
-  
   try {
     const res = await fetch(`${settings.workerUrl}/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: cleanText, voice_id: settings.fishModelId })
     });
-    
     if (!res.ok) throw new Error('TTS fetch failed');
-    
     const arrayBuffer = await res.arrayBuffer();
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
@@ -311,7 +246,6 @@ function browserTTS(text) {
 
 function openSettings() {
   document.getElementById('workerUrl').value = settings.workerUrl || '';
-  document.getElementById('ollamaUrl').value = settings.ollamaUrl || '';
   document.getElementById('fishModelId').value = settings.fishModelId || '';
   document.getElementById('settingsModal')?.classList.add('active');
 }
@@ -321,9 +255,7 @@ function closeSettings() {
 }
 
 function closeSettingsOnOverlay(e) {
-  if (e.target.id === 'settingsModal') {
-    closeSettings();
-  }
+  if (e.target.id === 'settingsModal') closeSettings();
 }
 
 function clearChat() {
@@ -339,9 +271,9 @@ function clearChat() {
 
 function clearAllMemory() {
   if (confirm('WARNING: This will erase all configuration and chat history. Proceed?')) {
-    localStorage.removeItem('bt_settings');
-    localStorage.removeItem('bt_chat_history');
-    settings = { workerUrl: '', ollamaUrl: '', fishModelId: '' };
+    localStorage.removeItem('bt_settings_v2');
+    localStorage.removeItem('bt_chat_history_v2');
+    settings = { workerUrl: '', fishModelId: '' };
     chatHistory = [];
     closeSettings();
     showToast('Factory reset complete.');
