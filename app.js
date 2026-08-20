@@ -1,7 +1,7 @@
 let chatHistory = [];
 let ttsEnabled = false;
 let isProcessing = false;
-let settings = { workerUrl: '', localTtsUrl: '' };
+let settings = { workerUrl: 'https://bt-7274.titanfall2.workers.dev', localTtsUrl: '' };
 
 document.addEventListener('DOMContentLoaded', init);
 
@@ -27,8 +27,14 @@ function init() {
 function loadSettings() {
   try {
     const saved = localStorage.getItem('bt_settings_v2');
-    if (saved) settings = { ...settings, ...JSON.parse(saved) };
-  } catch (e) { console.error("Error loading settings:", e); }
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      settings.workerUrl = parsed.workerUrl || 'https://bt-7274.titanfall2.workers.dev';
+      settings.localTtsUrl = parsed.localTtsUrl || '';
+    }
+  } catch (e) {
+    console.error('Failed to load settings', e);
+  }
 }
 
 function saveSettings() {
@@ -354,7 +360,7 @@ function clearAllMemory() {
   if (confirm('WARNING: This will erase all configuration and chat history. Proceed?')) {
     localStorage.removeItem('bt_settings_v2');
     localStorage.removeItem('bt_chat_history_v2');
-    settings = { workerUrl: '', localTtsUrl: '' };
+    settings = { workerUrl: 'https://bt-7274.titanfall2.workers.dev', localTtsUrl: '' };
     chatHistory = [];
     closeSettings();
     showToast('Factory reset complete.');
