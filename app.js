@@ -88,12 +88,30 @@ function toggleTTS() {
 }
 
 let audioUnlocked = false;
+let globalAudioCtx = null;
+
 function unlockAudio() {
   if (audioUnlocked) return;
-  // Play a 1ms silent WAV to unlock the HTML5 Audio engine
+  
+  // Initialize the Web Audio API context globally
+  globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  
+  // Play a 1ms silent WAV to unlock the HTML5 Audio engine (if needed elsewhere)
   const silentAudio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
   silentAudio.play().catch(()=>{});
   
+  // Resume the AudioContext (required by Safari)
+  if (globalAudioCtx.state === 'suspended') {
+    globalAudioCtx.resume();
+  }
+  
+  // Create a silent dummy buffer to completely unlock Web Audio API
+  const buffer = globalAudioCtx.createBuffer(1, 1, 22050);
+  const source = globalAudioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(globalAudioCtx.destination);
+  source.start(0);
+
   // Unlock the fallback speech engine
   if (window.speechSynthesis) {
     const silentUtterance = new SpeechSynthesisUtterance('');
@@ -252,22 +270,12 @@ async function speakText(text) {
       throw new Error(`Tunnel intercepted request! Received ${contentType} instead of audio/wav.`);
     }
 
-    const blob = await res.blob();
-    const audioUrl = URL.createObjectURL(blob);
-    const audio = new Audio(audioUrl);
-    
-    // Wait for the audio to finish playing before cleaning up and exiting
-    await new Promise((resolve, reject) => {
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        resolve();
-      };
-      audio.onerror = (e) => reject(e);
-      audio.play().catch(reject);
-    }).catch(e => {
-      console.error("Audio playback prevented by browser:", e);
-      browserTTS(cleanText);
-    });
+    const arrayBuffer = await res.arrayBuffer();
+    const audioBuffer = await globalAudioCtx.decodeAudioData(arrayBuffer);
+    const source = globalAudioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(globalAudioCtx.destination);
+    source.start(0);
   } catch (err) {
     console.error('Piper TTS failed, fallback to browser TTS', err);
     browserTTS(cleanText);
