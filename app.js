@@ -213,15 +213,18 @@ function setProcessing(state) {
 
 async function speakText(text) {
   const cleanText = text.replace(/\*\*/g, '').replace(/\*/g, '');
-  if (!settings.elevenLabsVoiceId || !settings.workerUrl) {
+  if (!settings.localTtsUrl) {
     browserTTS(cleanText);
     return;
   }
   try {
-    const res = await fetch(`${settings.workerUrl}/tts`, {
+    const res = await fetch(`${settings.localTtsUrl}/tts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanText, voice_id: settings.elevenLabsVoiceId })
+      headers: { 
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true'
+      },
+      body: JSON.stringify({ text: cleanText })
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -235,7 +238,7 @@ async function speakText(text) {
     source.connect(audioCtx.destination);
     source.start(0);
   } catch (err) {
-    console.error('ElevenLabs failed, fallback to browser TTS', err);
+    console.error('Piper TTS failed, fallback to browser TTS', err);
     browserTTS(cleanText);
   }
 }
