@@ -230,13 +230,17 @@ async function speakText(text) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || `TTS fetch failed with status ${res.status}`);
     }
-    const arrayBuffer = await res.arrayBuffer();
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
+    const blob = await res.blob();
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+    
+    // Play the audio and clean up the URL afterward
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
+    
+    await audio.play().catch(e => {
+      console.error("Audio playback prevented by browser:", e);
+      browserTTS(cleanText);
+    });
   } catch (err) {
     console.error('Piper TTS failed, fallback to browser TTS', err);
     browserTTS(cleanText);
