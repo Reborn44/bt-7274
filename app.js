@@ -222,7 +222,10 @@ async function speakText(text) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: cleanText, voice_id: settings.fishModelId })
     });
-    if (!res.ok) throw new Error('TTS fetch failed');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `TTS fetch failed with status ${res.status}`);
+    }
     const arrayBuffer = await res.arrayBuffer();
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
